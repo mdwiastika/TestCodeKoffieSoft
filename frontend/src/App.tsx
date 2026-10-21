@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { ToastProvider } from "@/components/ui/toast"
 import { Navbar, type TabType } from "@/components/layout/Navbar"
@@ -19,8 +19,15 @@ const queryClient = new QueryClient({
   },
 })
 
+const getTabFromPath = (): TabType => {
+  const path = window.location.pathname.toLowerCase().replace(/\/+$/, "")
+  if (path === "/tasks") return "tasks"
+  if (path === "/members") return "members"
+  return "dashboard"
+}
+
 function MainApp() {
-  const [currentTab, setCurrentTab] = useState<TabType>("dashboard")
+  const [currentTab, setCurrentTab] = useState<TabType>(getTabFromPath)
   const [taskFilters, setTaskFilters] = useState<TaskFilters>({
     search: "",
     status: "ALL",
@@ -33,6 +40,32 @@ function MainApp() {
   const createTaskMutation = useCreateTask()
   const { showToast } = useToast()
 
+  const navigateToTab = useCallback((tab: TabType, replace = false) => {
+    const targetPath = tab === "dashboard" ? "/dashboard" : `/${tab}`
+    if (window.location.pathname !== targetPath) {
+      if (replace) {
+        window.history.replaceState({ tab }, "", targetPath)
+      } else {
+        window.history.pushState({ tab }, "", targetPath)
+      }
+    }
+    setCurrentTab(tab)
+  }, [])
+
+  useEffect(() => {
+    const initialPath = window.location.pathname.toLowerCase().replace(/\/+$/, "")
+    if (!initialPath || initialPath === "") {
+      window.history.replaceState({ tab: "dashboard" }, "", "/dashboard")
+    }
+
+    const handlePopState = () => {
+      setCurrentTab(getTabFromPath())
+    }
+
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [])
+
   const handleNavigateToTasks = (statusFilter?: string) => {
     if (statusFilter) {
       setTaskFilters({
@@ -42,7 +75,7 @@ function MainApp() {
         assignee_id: "ALL",
       })
     }
-    setCurrentTab("tasks")
+    navigateToTab("tasks")
   }
 
   const handleQuickCreateSubmit = async (data: TaskCreateInput) => {
@@ -60,7 +93,7 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-slate-50/40 flex flex-col font-sans text-slate-900 selection:bg-slate-900 selection:text-white">
-      <Navbar currentTab={currentTab} onTabChange={setCurrentTab} />
+      <Navbar currentTab={currentTab} onTabChange={(tab) => navigateToTab(tab)} />
 
       <main className="flex-1 mx-auto w-full max-w-6xl px-5 sm:px-6 py-6 sm:py-8">
         {currentTab === "dashboard" && (
