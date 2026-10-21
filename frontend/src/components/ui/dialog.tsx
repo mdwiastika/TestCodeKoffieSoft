@@ -1,4 +1,5 @@
 import * as React from "react"
+import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -41,10 +42,10 @@ export function Dialog({
     lg: "max-w-lg",
   }[maxWidth]
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       <div
-        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -69,7 +70,7 @@ export function Dialog({
           </div>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-900"
+            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
             aria-label="Close modal"
           >
             <X className="h-4 w-4" />
@@ -77,7 +78,8 @@ export function Dialog({
         </div>
         <div className="mt-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -105,10 +107,10 @@ export function Sheet({ isOpen, onClose, title, children }: SheetProps) {
 
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex justify-end">
       <div
-        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
+        className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -116,20 +118,22 @@ export function Sheet({ isOpen, onClose, title, children }: SheetProps) {
       <div
         role="dialog"
         aria-modal="true"
+        aria-label={title}
         className="relative z-10 w-full max-w-xs bg-white h-full shadow-2xl flex flex-col p-5"
       >
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-900">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            aria-label="Close sheet"
+            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            aria-label="Close drawer"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto py-4">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
