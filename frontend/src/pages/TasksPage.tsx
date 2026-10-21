@@ -151,23 +151,15 @@ export function TasksPage({ initialFilters }: TasksPageProps) {
   }
 
   const handleFormSubmit = async (data: TaskCreateInput) => {
-    try {
-      if (taskToEdit) {
-        await updateTaskMutation.mutateAsync({
-          id: taskToEdit.id,
-          input: data,
-        })
-        showToast("Task updated successfully", "success")
-      } else {
-        await createTaskMutation.mutateAsync(data)
-        showToast("Task created successfully", "success")
-      }
-    } catch (err) {
-      showToast(
-        err instanceof Error ? err.message : "Failed to save task",
-        "error"
-      )
-      throw err
+    if (taskToEdit) {
+      await updateTaskMutation.mutateAsync({
+        id: taskToEdit.id,
+        input: data,
+      })
+      showToast("Task updated successfully", "success")
+    } else {
+      await createTaskMutation.mutateAsync(data)
+      showToast("Task created successfully", "success")
     }
   }
 

@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -6,6 +6,7 @@ import type { TeamMember, MemberCreateInput } from "@/types"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { AlertCircle } from "lucide-react"
 
 const memberSchema = z.object({
   name: z
@@ -38,11 +39,14 @@ export function MemberFormDialog({
   isSubmitting,
 }: MemberFormDialogProps) {
   const isEditing = Boolean(memberToEdit)
+  const [serverError, setServerError] = useState<string | null>(null)
 
   const {
     register,
     handleSubmit,
     reset,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<MemberFormValues>({
     resolver: zodResolver(memberSchema),
@@ -51,6 +55,12 @@ export function MemberFormDialog({
       email: "",
     },
   })
+
+  const handleClose = () => {
+    setServerError(null)
+    clearErrors()
+    onClose()
+  }
 
   useEffect(() => {
     if (isOpen) {
@@ -69,17 +79,27 @@ export function MemberFormDialog({
   }, [isOpen, memberToEdit, reset])
 
   const handleFormSubmit = async (values: MemberFormValues) => {
-    await onSubmit({
-      name: values.name.trim(),
-      email: values.email.trim().toLowerCase(),
-    })
-    onClose()
+    setServerError(null)
+    clearErrors()
+    try {
+      await onSubmit({
+        name: values.name.trim(),
+        email: values.email.trim().toLowerCase(),
+      })
+      handleClose()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to save team member"
+      setServerError(msg)
+      if (msg.toLowerCase().includes("email")) {
+        setError("email", { type: "server", message: msg })
+      }
+    }
   }
 
   return (
     <Dialog
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={isEditing ? "Edit Team Member" : "Add Team Member"}
       description={
         isEditing
@@ -89,13 +109,24 @@ export function MemberFormDialog({
       maxWidth="sm"
     >
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+        {serverError && (
+          <div className="rounded-md bg-red-50 p-2.5 text-xs font-medium text-red-800 border border-red-200 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+            <span>{serverError}</span>
+          </div>
+        )}
+
         <div>
           <label className="text-xs font-semibold text-slate-800 block mb-1">
             Full Name <span className="text-red-500">*</span>
           </label>
           <Input
             placeholder="e.g. John Doe"
-            {...register("name")}
+            {...register("name", {
+              onChange: () => {
+                if (serverError) setServerError(null)
+              },
+            })}
             aria-invalid={Boolean(errors.name)}
           />
           {errors.name && (
@@ -112,7 +143,12 @@ export function MemberFormDialog({
           <Input
             type="email"
             placeholder="e.g. john@company.com"
-            {...register("email")}
+            {...register("email", {
+              onChange: () => {
+                if (serverError) setServerError(null)
+                clearErrors("email")
+              },
+            })}
             aria-invalid={Boolean(errors.email)}
           />
           {errors.email && (
@@ -127,7 +163,7 @@ export function MemberFormDialog({
             type="button"
             variant="outline"
             size="sm"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isSubmitting}
           >
             Cancel

@@ -89,16 +89,8 @@ function MainApp() {
   }
 
   const handleQuickCreateSubmit = async (data: TaskCreateInput) => {
-    try {
-      await createTaskMutation.mutateAsync(data)
-      showToast("Task created successfully", "success")
-    } catch (err) {
-      showToast(
-        err instanceof Error ? err.message : "Failed to create task",
-        "error"
-      )
-      throw err
-    }
+    await createTaskMutation.mutateAsync(data)
+    showToast("Task created successfully", "success")
   }
 
   return (

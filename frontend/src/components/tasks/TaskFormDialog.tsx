@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -7,6 +7,7 @@ import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input, Textarea } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
+import { AlertCircle } from "lucide-react"
 
 const taskSchema = z.object({
   title: z
@@ -41,6 +42,7 @@ export function TaskFormDialog({
   isSubmitting,
 }: TaskFormDialogProps) {
   const isEditing = Boolean(taskToEdit)
+  const [serverError, setServerError] = useState<string | null>(null)
 
   const {
     register,
@@ -58,6 +60,11 @@ export function TaskFormDialog({
       due_date: "",
     },
   })
+
+  const handleClose = () => {
+    setServerError(null)
+    onClose()
+  }
 
   useEffect(() => {
     if (isOpen) {
@@ -84,6 +91,7 @@ export function TaskFormDialog({
   }, [isOpen, taskToEdit, reset])
 
   const handleFormSubmit = async (values: TaskFormValues) => {
+    setServerError(null)
     const parsedAssigneeId =
       values.assignee_id && values.assignee_id !== "UNASSIGNED"
         ? parseInt(values.assignee_id, 10)
@@ -98,14 +106,18 @@ export function TaskFormDialog({
       due_date: values.due_date && values.due_date.trim() ? values.due_date : null,
     }
 
-    await onSubmit(payload)
-    onClose()
+    try {
+      await onSubmit(payload)
+      handleClose()
+    } catch (err) {
+      setServerError(err instanceof Error ? err.message : "Failed to save task")
+    }
   }
 
   return (
     <Dialog
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={isEditing ? "Edit Task" : "Create New Task"}
       description={
         isEditing
@@ -115,6 +127,12 @@ export function TaskFormDialog({
       maxWidth="md"
     >
       <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+        {serverError && (
+          <div className="rounded-md bg-red-50 p-2.5 text-xs font-medium text-red-800 border border-red-200 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+            <span>{serverError}</span>
+          </div>
+        )}
         <div>
           <label className="text-xs font-semibold text-slate-800 block mb-1">
             Task Title <span className="text-red-500">*</span>
@@ -194,7 +212,7 @@ export function TaskFormDialog({
             type="button"
             variant="outline"
             size="sm"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={isSubmitting}
           >
             Cancel

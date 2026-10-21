@@ -72,23 +72,15 @@ export function MembersPage() {
   }
 
   const handleFormSubmit = async (data: MemberCreateInput) => {
-    try {
-      if (memberToEdit) {
-        await updateMemberMutation.mutateAsync({
-          id: memberToEdit.id,
-          input: data,
-        })
-        showToast("Team member updated successfully", "success")
-      } else {
-        await createMemberMutation.mutateAsync(data)
-        showToast("Team member added successfully", "success")
-      }
-    } catch (err) {
-      showToast(
-        err instanceof Error ? err.message : "Failed to save team member",
-        "error"
-      )
-      throw err
+    if (memberToEdit) {
+      await updateMemberMutation.mutateAsync({
+        id: memberToEdit.id,
+        input: data,
+      })
+      showToast("Team member updated successfully", "success")
+    } else {
+      await createMemberMutation.mutateAsync(data)
+      showToast("Team member added successfully", "success")
     }
   }
 
