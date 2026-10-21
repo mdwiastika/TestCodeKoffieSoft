@@ -1,5 +1,6 @@
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
@@ -8,6 +9,31 @@ from app.database import Base, get_db
 from app.main import app
 from app.models.member import Member
 from app.models.task import Task
+
+
+def ensure_test_database_exists() -> None:
+    test_url = make_url(settings.TEST_DATABASE_URL)
+    if test_url.database == make_url(settings.DATABASE_URL).database:
+        raise RuntimeError(
+            "TEST_DATABASE_URL must point to a different database than DATABASE_URL"
+        )
+    admin_engine = create_engine(
+        test_url.set(database="postgres"), isolation_level="AUTOCOMMIT"
+    )
+    try:
+        with admin_engine.connect() as conn:
+            exists = conn.execute(
+                text("SELECT 1 FROM pg_database WHERE datname = :name"),
+                {"name": test_url.database},
+            ).scalar()
+            if not exists:
+                quoted = conn.dialect.identifier_preparer.quote(test_url.database)
+                conn.execute(text(f"CREATE DATABASE {quoted}"))
+    finally:
+        admin_engine.dispose()
+
+
+ensure_test_database_exists()
 
 test_engine = create_engine(settings.TEST_DATABASE_URL, pool_pre_ping=True)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
