@@ -186,3 +186,31 @@ def test_tasks_filter_and_search(client):
     assert combined_res.json()["total"] == 1
     assert len(combined_res.json()["items"]) == 1
     assert combined_res.json()["items"][0]["title"] == "Database Optimization"
+
+
+def test_tasks_filter_overdue(client):
+    today = date.today()
+    past_due = (today - timedelta(days=2)).isoformat()
+    future_due = (today + timedelta(days=3)).isoformat()
+
+    client.post("/tasks", json={"title": "Overdue In Progress", "status": "In Progress", "due_date": past_due})
+    client.post("/tasks", json={"title": "Past Done Task", "status": "Done", "due_date": past_due})
+    client.post("/tasks", json={"title": "Future Task", "status": "To Do", "due_date": future_due})
+    client.post("/tasks", json={"title": "No Due Date Task", "status": "To Do", "due_date": None})
+
+    res = client.get("/tasks?is_overdue=true")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 1
+    assert len(data["items"]) == 1
+    assert data["items"][0]["title"] == "Overdue In Progress"
+
+    res_status_alias = client.get("/tasks?status=Overdue")
+    assert res_status_alias.status_code == 200
+    assert res_status_alias.json()["total"] == 1
+    assert res_status_alias.json()["items"][0]["title"] == "Overdue In Progress"
+
+    res_not_overdue = client.get("/tasks?is_overdue=false")
+    assert res_not_overdue.status_code == 200
+    assert res_not_overdue.json()["total"] == 3
+

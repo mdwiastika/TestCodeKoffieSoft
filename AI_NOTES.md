@@ -95,3 +95,13 @@ This document tracks all autonomous actions, architectural decisions, uncertaint
 - **Actions Taken**:
   - Wrote comprehensive `README.md` covering prerequisites, setup steps, migration commands, seed data, test runs, architecture rationale, trade-offs, and limitations.
   - Validated clean git status across both `backend` and `frontend` repositories using Conventional Commits.
+
+---
+
+## Overdue Card Bugfix & Filter Integration
+- **Bugs Encountered & Fixed**:
+  - Clicking the "Overdue" summary card on the Dashboard navigated to the tasks page without applying overdue filtering, showing all tasks instead of overdue items.
+  - Added `is_overdue: Optional[bool]` parameter to backend `GET /tasks` endpoint and service query (`Task.due_date < today and Task.status != 'Done'`), while supporting `status=Overdue` as an alias.
+  - Updated frontend `TaskFilters`, API client query param serialization, `TasksPage` URL sync, and `TaskFiltersBar` with an active filter pill and mobile sheet checkbox.
+  - Added `test_tasks_filter_overdue` in `test_tasks.py`. All 26 pytest tests pass and frontend build succeeds with 0 errors.
+

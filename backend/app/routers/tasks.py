@@ -16,6 +16,7 @@ def list_tasks(
     task_status: Optional[str] = Query(None, alias="status", description="Filter by status ('To Do', 'In Progress', 'Done')"),
     priority: Optional[str] = Query(None, description="Filter by priority ('Low', 'Medium', 'High')"),
     assignee_id: Optional[int] = Query(None, description="Filter by assignee member ID"),
+    is_overdue: Optional[bool] = Query(None, description="Filter overdue tasks"),
     db: Session = Depends(get_db),
 ):
     items, total, total_pages = TaskService.get_paginated(
@@ -26,6 +27,7 @@ def list_tasks(
         task_status=task_status,
         priority=priority,
         assignee_id=assignee_id,
+        is_overdue=is_overdue,
     )
     return PaginatedTaskResponse(
         items=items,

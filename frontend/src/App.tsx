@@ -66,16 +66,26 @@ function MainApp() {
     return () => window.removeEventListener("popstate", handlePopState)
   }, [])
 
-  const handleNavigateToTasks = (statusFilter?: string) => {
-    if (statusFilter) {
-      setTaskFilters({
-        search: "",
-        status: statusFilter,
-        priority: "ALL",
-        assignee_id: "ALL",
-      })
+  const handleNavigateToTasks = (statusFilter?: string, isOverdue?: boolean) => {
+    const newFilters: TaskFilters = {
+      search: "",
+      status: statusFilter || "ALL",
+      priority: "ALL",
+      assignee_id: "ALL",
+      is_overdue: isOverdue ? true : undefined,
     }
-    navigateToTab("tasks")
+    setTaskFilters(newFilters)
+    const url = new URL(window.location.href)
+    url.pathname = "/tasks"
+    url.search = ""
+    if (statusFilter && statusFilter !== "ALL") {
+      url.searchParams.set("status", statusFilter)
+    }
+    if (isOverdue) {
+      url.searchParams.set("is_overdue", "true")
+    }
+    window.history.pushState({ tab: "tasks" }, "", url.pathname + url.search)
+    setCurrentTab("tasks")
   }
 
   const handleQuickCreateSubmit = async (data: TaskCreateInput) => {

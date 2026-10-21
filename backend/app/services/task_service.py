@@ -2,7 +2,7 @@ import math
 from datetime import date
 from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
-from sqlalchemy import func, case, and_
+from sqlalchemy import func, case, and_, or_
 from sqlalchemy.orm import Session, joinedload
 from app.models.task import Task
 from app.models.member import Member
@@ -17,6 +17,7 @@ class TaskService:
         task_status: Optional[str] = None,
         priority: Optional[str] = None,
         assignee_id: Optional[int] = None,
+        is_overdue: Optional[bool] = None,
     ) -> List[Task]:
         query = db.query(Task).options(joinedload(Task.assignee))
 
@@ -24,7 +25,24 @@ class TaskService:
             query = query.filter(Task.title.ilike(f"%{search.strip()}%"))
 
         if task_status and task_status.strip():
-            query = query.filter(Task.status == task_status.strip())
+            if task_status.strip() == "Overdue":
+                today = date.today()
+                query = query.filter(Task.due_date < today, Task.status != "Done")
+            else:
+                query = query.filter(Task.status == task_status.strip())
+
+        if is_overdue is True:
+            today = date.today()
+            query = query.filter(Task.due_date < today, Task.status != "Done")
+        elif is_overdue is False:
+            today = date.today()
+            query = query.filter(
+                or_(
+                    Task.due_date >= today,
+                    Task.due_date.is_(None),
+                    Task.status == "Done",
+                )
+            )
 
         if priority and priority.strip():
             query = query.filter(Task.priority == priority.strip())
@@ -43,6 +61,7 @@ class TaskService:
         task_status: Optional[str] = None,
         priority: Optional[str] = None,
         assignee_id: Optional[int] = None,
+        is_overdue: Optional[bool] = None,
     ) -> Tuple[List[Task], int, int]:
         query = db.query(Task)
 
@@ -50,7 +69,24 @@ class TaskService:
             query = query.filter(Task.title.ilike(f"%{search.strip()}%"))
 
         if task_status and task_status.strip():
-            query = query.filter(Task.status == task_status.strip())
+            if task_status.strip() == "Overdue":
+                today = date.today()
+                query = query.filter(Task.due_date < today, Task.status != "Done")
+            else:
+                query = query.filter(Task.status == task_status.strip())
+
+        if is_overdue is True:
+            today = date.today()
+            query = query.filter(Task.due_date < today, Task.status != "Done")
+        elif is_overdue is False:
+            today = date.today()
+            query = query.filter(
+                or_(
+                    Task.due_date >= today,
+                    Task.due_date.is_(None),
+                    Task.status == "Done",
+                )
+            )
 
         if priority and priority.strip():
             query = query.filter(Task.priority == priority.strip())

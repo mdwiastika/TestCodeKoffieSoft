@@ -72,6 +72,9 @@ export const api = {
     if (filters?.priority && filters.priority !== "ALL") params.append("priority", filters.priority)
     if (filters?.assignee_id && filters.assignee_id !== "ALL")
       params.append("assignee_id", String(filters.assignee_id))
+    if (filters?.is_overdue) {
+      params.append("is_overdue", "true")
+    }
 
     return apiFetch<PaginatedTasks>(`/tasks?${params.toString()}`)
   },

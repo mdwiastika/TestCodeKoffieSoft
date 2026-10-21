@@ -41,6 +41,7 @@ export function TaskFiltersBar({
       status: "ALL",
       priority: "ALL",
       assignee_id: "ALL",
+      is_overdue: undefined,
     })
   }
 
@@ -48,7 +49,8 @@ export function TaskFiltersBar({
     (filters.search && filters.search.trim().length > 0) ||
       (filters.status && filters.status !== "ALL") ||
       (filters.priority && filters.priority !== "ALL") ||
-      (filters.assignee_id && filters.assignee_id !== "ALL")
+      (filters.assignee_id && filters.assignee_id !== "ALL") ||
+      filters.is_overdue
   )
 
   const activeCount = [
@@ -56,6 +58,7 @@ export function TaskFiltersBar({
     Boolean(filters.status && filters.status !== "ALL"),
     Boolean(filters.priority && filters.priority !== "ALL"),
     Boolean(filters.assignee_id && filters.assignee_id !== "ALL"),
+    Boolean(filters.is_overdue),
   ].filter(Boolean).length
 
   return (
@@ -148,6 +151,22 @@ export function TaskFiltersBar({
         </div>
       </div>
 
+      {filters.is_overdue && (
+        <div className="flex items-center gap-2 pt-0.5">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-600/20">
+            <span>Filtered by: <strong>Overdue tasks only</strong></span>
+            <button
+              type="button"
+              onClick={() => onFilterChange({ ...filters, is_overdue: undefined })}
+              className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-rose-600 hover:bg-rose-200/50 hover:text-rose-900"
+              aria-label="Remove overdue filter"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        </div>
+      )}
+
       <Sheet
         isOpen={isMobileSheetOpen}
         onClose={() => setIsMobileSheetOpen(false)}
@@ -199,6 +218,26 @@ export function TaskFiltersBar({
                 </option>
               ))}
             </Select>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-slate-700 block mb-1.5">
+              Overdue Tasks
+            </label>
+            <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={Boolean(filters.is_overdue)}
+                onChange={(e) =>
+                  onFilterChange({
+                    ...filters,
+                    is_overdue: e.target.checked ? true : undefined,
+                  })
+                }
+                className="h-4 w-4 rounded border-slate-300 text-rose-600 focus:ring-rose-500"
+              />
+              <span>Show only overdue tasks</span>
+            </label>
           </div>
 
           <div className="pt-4 flex flex-col gap-2">

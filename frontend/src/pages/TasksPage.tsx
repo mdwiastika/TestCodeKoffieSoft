@@ -29,13 +29,23 @@ interface TasksPageProps {
 function getInitialState(initialFilters?: TaskFilters) {
   const params = new URLSearchParams(window.location.search)
   const p = parseInt(params.get("page") || "1", 10)
+  const isOverdue =
+    params.get("is_overdue") === "true" ||
+    params.get("status") === "Overdue" ||
+    Boolean(initialFilters?.is_overdue) ||
+    initialFilters?.status === "Overdue"
+
+  const rawStatus = params.get("status") || initialFilters?.status || "ALL"
+  const status = rawStatus === "Overdue" ? "ALL" : rawStatus
+
   return {
     page: isNaN(p) || p < 1 ? 1 : p,
     filters: {
       search: params.get("search") || initialFilters?.search || "",
-      status: params.get("status") || initialFilters?.status || "ALL",
+      status,
       priority: params.get("priority") || initialFilters?.priority || "ALL",
       assignee_id: params.get("assignee_id") || initialFilters?.assignee_id || "ALL",
+      is_overdue: isOverdue ? true : undefined,
     },
   }
 }
@@ -98,6 +108,12 @@ export function TasksPage({ initialFilters }: TasksPageProps) {
       url.searchParams.set("assignee_id", String(newFilters.assignee_id))
     } else {
       url.searchParams.delete("assignee_id")
+    }
+
+    if (newFilters.is_overdue) {
+      url.searchParams.set("is_overdue", "true")
+    } else {
+      url.searchParams.delete("is_overdue")
     }
 
     window.history.pushState(null, "", url.pathname + url.search)
@@ -195,7 +211,8 @@ export function TasksPage({ initialFilters }: TasksPageProps) {
     (filters.search && filters.search.trim().length > 0) ||
       (filters.status && filters.status !== "ALL") ||
       (filters.priority && filters.priority !== "ALL") ||
-      (filters.assignee_id && filters.assignee_id !== "ALL")
+      (filters.assignee_id && filters.assignee_id !== "ALL") ||
+      filters.is_overdue
   )
 
   return (
@@ -251,6 +268,7 @@ export function TasksPage({ initialFilters }: TasksPageProps) {
                     status: "ALL",
                     priority: "ALL",
                     assignee_id: "ALL",
+                    is_overdue: undefined,
                   })
               : handleOpenCreate
           }

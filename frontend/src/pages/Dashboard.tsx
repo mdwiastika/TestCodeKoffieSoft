@@ -22,7 +22,7 @@ import {
 } from "lucide-react"
 
 interface DashboardProps {
-  onNavigateToTasks: (statusFilter?: string) => void
+  onNavigateToTasks: (statusFilter?: string, isOverdue?: boolean) => void
   onOpenCreateTask: () => void
 }
 
@@ -185,7 +185,7 @@ export function Dashboard({ onNavigateToTasks, onOpenCreateTask }: DashboardProp
 
         <Card
           className="col-span-2 sm:col-span-1 border-red-300 bg-red-50/40 cursor-pointer hover:bg-red-50/70 transition-colors"
-          onClick={() => onNavigateToTasks()}
+          onClick={() => onNavigateToTasks(undefined, true)}
         >
           <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
             <div className="flex items-center space-x-1.5">

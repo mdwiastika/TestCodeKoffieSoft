@@ -68,6 +68,7 @@ export interface TaskFilters {
   status?: string
   priority?: string
   assignee_id?: string | number
+  is_overdue?: boolean
 }
 
 export interface PaginatedResponse<T> {
