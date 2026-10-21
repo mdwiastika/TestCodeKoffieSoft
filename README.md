@@ -142,14 +142,7 @@ docker ps
 ```
 Verify the container is running and healthy.
 
-### 3. Create the test database
-Tests run against a separate database (`taskmanagement_test`) so your development data is never touched. Create it once:
-```powershell
-docker compose exec db psql -U postgres -c "CREATE DATABASE taskmanagement_test;"
-```
-If it already exists, the "already exists" message can be ignored.
-
-### 4. Set up the backend
+### 3. Set up the backend
 ```powershell
 cd backend
 python -m venv .venv
@@ -159,22 +152,24 @@ python -m pip install -r requirements.txt
 ```
 macOS/Linux: activate with `source .venv/bin/activate`.
 
-### 5. Run database migrations
+### 4. Run database migrations
 ```powershell
 alembic upgrade head
 ```
-Schema creation relies strictly on migrations; `Base.metadata.create_all()` is never used.
+In development, the schema is created strictly through Alembic migrations.
 
-### 6. Seed sample data
+### 5. Seed sample data
 ```powershell
 python seed.py
 ```
 Generates 15 team members and 35+ tasks (overdue items, past-due completed tasks, unassigned tasks, and upcoming deliverables), enough to exercise multi-page pagination.
 
-### 7. Run backend tests
+### 6. Run backend tests
 ```powershell
 pytest -v
 ```
+The isolated test database `taskmanagement_test` is created automatically on the first run, so your development data is never touched. The test setup refuses to run if the test database is the same as the development database.
+
 All **26 tests** should pass:
 - Member CRUD, email uniqueness (409), validation errors (422), options list, and pagination.
 - Task CRUD, defaults, invalid status/priority (422), unassigning, and deletion.
@@ -182,14 +177,16 @@ All **26 tests** should pass:
 - Combinable filters (search, status, priority, assignee, and overdue).
 - Dashboard KPI counts, overdue exclusion for Done tasks, and "Needs attention" prioritization.
 
-### 8. Start the backend API server
+The test suite builds its schema with `Base.metadata.create_all()` on the test database for speed, so the Alembic migration files themselves are not covered by the automated tests.
+
+### 7. Start the backend API server
 ```powershell
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 - Interactive Swagger UI: `http://127.0.0.1:8000/docs`
 - Health check: `http://127.0.0.1:8000/health`
 
-### 9. Set up and run the frontend
+### 8. Set up and run the frontend
 In a separate terminal, from the project root:
 ```powershell
 cd frontend
@@ -260,11 +257,13 @@ Errors use a consistent shape (`{"detail": "..."}`) with appropriate status code
    - Intentionally omitted per the assessment scope. A production system would add JWT or session-based authentication with role-based access control.
 2. **No Automated Frontend Tests:**
    - The backend has an automated test suite; the frontend flows were verified manually (create, edit, delete, assign, search, filter, pagination, dashboard) at 360px, 768px, and 1280px widths. Component and end-to-end tests would be the next step.
-3. **No Real-Time Updates:**
+3. **Migrations Not Covered by Tests:**
+   - Backend tests build the schema with `create_all()`. A test that runs `alembic upgrade head` on a clean database would verify the migrations themselves.
+4. **No Real-Time Updates:**
    - Lists and dashboard counts refetch after mutations or on manual refresh. WebSockets or Server-Sent Events could push live updates to teammates.
-4. **Offset Pagination:**
+5. **Offset Pagination:**
    - See architecture note 6; cursor-based pagination would be the upgrade path for very large datasets.
-5. **Bulk Operations:**
+6. **Bulk Operations:**
    - Bulk status changes or multi-select reassignment could be added as the team grows.
 
 ---
@@ -272,9 +271,9 @@ Errors use a consistent shape (`{"detail": "..."}`) with appropriate status code
 ## AI Usage Disclosure
 
 - **Tools used:**
-  - **Antigravity** coding agent (model: `<exact model name shown in Antigravity>`) for implementation.
+  - **Antigravity** coding agent (model: Gemini 3.8 Flash) for implementation.
   - **Claude** (Anthropic) for planning, writing agent prompts, and reviewing this documentation.
-  - **`<design skill name>`**, an installed agent skill, for frontend visual guidance.
+  - **taste-skill**, an installed agent skill for frontend design quality, used as visual guidance for the UI.
 - **Concrete example of AI assistance:**
   While building the Overdue drill-down from the dashboard, the agent noticed that the Overdue summary card navigated to `/tasks` without applying a filter. It added an `is_overdue: Optional[bool]` filter to the backend service and router, added a pytest test (`test_tasks_filter_overdue`), updated the frontend routing to `/tasks?is_overdue=true`, and added a filter pill with a quick reset.
 - **Verification:** all generated code was reviewed, the backend test suite was run, and the main flows were tested manually on mobile and desktop widths. I can explain the architecture and the decisions above.
