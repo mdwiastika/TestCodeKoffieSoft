@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import type { TeamMember, MemberCreateInput } from "@/types"
 import {
   useMembers,
@@ -13,20 +13,53 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { MemberFormDialog } from "@/components/members/MemberFormDialog"
+import { Pagination } from "@/components/ui/pagination"
 import { formatDate } from "@/lib/utils"
 import { Plus, Users, Mail, Calendar, Edit, Trash2 } from "lucide-react"
+
+const PAGE_SIZE = 10
+
+function getInitialPage(): number {
+  const params = new URLSearchParams(window.location.search)
+  const p = parseInt(params.get("page") || "1", 10)
+  return isNaN(p) || p < 1 ? 1 : p
+}
 
 export function MembersPage() {
   const { showToast } = useToast()
 
+  const [page, setPage] = useState<number>(getInitialPage)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [memberToEdit, setMemberToEdit] = useState<TeamMember | null>(null)
   const [memberToDelete, setMemberToDelete] = useState<TeamMember | null>(null)
 
-  const { data: members = [], isLoading, isError, error, refetch } = useMembers()
+  const { data, isLoading, isError, error, refetch } = useMembers(page, PAGE_SIZE)
   const createMemberMutation = useCreateMember()
   const updateMemberMutation = useUpdateMember()
   const deleteMemberMutation = useDeleteMember()
+
+  const members = data?.items || []
+  const total = data?.total || 0
+  const totalPages = data?.total_pages || 0
+
+  const updatePage = useCallback((newPage: number) => {
+    setPage(newPage)
+    const url = new URL(window.location.href)
+    if (newPage === 1) {
+      url.searchParams.delete("page")
+    } else {
+      url.searchParams.set("page", String(newPage))
+    }
+    window.history.pushState(null, "", url.pathname + url.search)
+  }, [])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setPage(getInitialPage())
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [])
 
   const handleOpenCreate = () => {
     setMemberToEdit(null)
@@ -68,6 +101,9 @@ export function MembersPage() {
         "success"
       )
       setMemberToDelete(null)
+      if (members.length === 1 && page > 1) {
+        updatePage(page - 1)
+      }
     } catch (err) {
       showToast(
         err instanceof Error ? err.message : "Failed to delete team member",
@@ -93,7 +129,7 @@ export function MembersPage() {
         </Button>
       </div>
 
-      {isLoading ? (
+      {isLoading && members.length === 0 ? (
         <div className="space-y-3">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-16 w-full" />
@@ -233,6 +269,14 @@ export function MembersPage() {
               </div>
             ))}
           </div>
+
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            pageSize={PAGE_SIZE}
+            onPageChange={updatePage}
+          />
         </>
       )}
 

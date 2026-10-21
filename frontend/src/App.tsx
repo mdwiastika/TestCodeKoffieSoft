@@ -6,7 +6,7 @@ import { Dashboard } from "@/pages/Dashboard"
 import { TasksPage } from "@/pages/TasksPage"
 import { MembersPage } from "@/pages/MembersPage"
 import { TaskFormDialog } from "@/components/tasks/TaskFormDialog"
-import { useMembers, useCreateTask } from "@/api/hooks"
+import { useMemberOptions, useCreateTask } from "@/api/hooks"
 import { useToast } from "@/components/ui/toast"
 import type { TaskCreateInput, TaskFilters } from "@/types"
 
@@ -36,7 +36,7 @@ function MainApp() {
   })
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false)
 
-  const { data: members = [] } = useMembers()
+  const { data: memberOptions = [] } = useMemberOptions()
   const createTaskMutation = useCreateTask()
   const { showToast } = useToast()
 
@@ -117,7 +117,7 @@ function MainApp() {
       <TaskFormDialog
         isOpen={isQuickCreateOpen}
         onClose={() => setIsQuickCreateOpen(false)}
-        members={members}
+        members={memberOptions}
         onSubmit={handleQuickCreateSubmit}
         isSubmitting={createTaskMutation.isPending}
       />

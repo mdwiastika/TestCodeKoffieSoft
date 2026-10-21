@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 
@@ -24,3 +24,18 @@ class MemberResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class MemberOptionResponse(BaseModel):
+    id: int
+    name: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedMemberResponse(BaseModel):
+    items: List[MemberResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

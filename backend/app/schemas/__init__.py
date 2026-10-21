@@ -3,6 +3,8 @@ from app.schemas.member import (
     MemberCreate,
     MemberUpdate,
     MemberResponse,
+    MemberOptionResponse,
+    PaginatedMemberResponse,
 )
 from app.schemas.task import (
     TaskBase,
@@ -11,6 +13,7 @@ from app.schemas.task import (
     TaskResponse,
     TaskStatusLiteral,
     TaskPriorityLiteral,
+    PaginatedTaskResponse,
 )
 from app.schemas.dashboard import DashboardStatsResponse
 
@@ -19,11 +22,14 @@ __all__ = [
     "MemberCreate",
     "MemberUpdate",
     "MemberResponse",
+    "MemberOptionResponse",
+    "PaginatedMemberResponse",
     "TaskBase",
     "TaskCreate",
     "TaskUpdate",
     "TaskResponse",
     "TaskStatusLiteral",
     "TaskPriorityLiteral",
+    "PaginatedTaskResponse",
     "DashboardStatsResponse",
 ]

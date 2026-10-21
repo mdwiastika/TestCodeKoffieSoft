@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { api } from "./client"
 import type {
   MemberCreateInput,
@@ -10,8 +10,10 @@ import type {
 
 export const queryKeys = {
   dashboard: ["dashboard"] as const,
-  members: ["members"] as const,
-  tasks: (filters?: TaskFilters) => ["tasks", filters] as const,
+  members: (page = 1, pageSize = 10) => ["members", page, pageSize] as const,
+  memberOptions: ["members", "options"] as const,
+  tasks: (filters?: TaskFilters, page = 1, pageSize = 10) =>
+    ["tasks", filters, page, pageSize] as const,
 }
 
 export function useDashboardStats() {
@@ -21,10 +23,18 @@ export function useDashboardStats() {
   })
 }
 
-export function useMembers() {
+export function useMembers(page = 1, pageSize = 10) {
   return useQuery({
-    queryKey: queryKeys.members,
-    queryFn: () => api.getMembers(),
+    queryKey: queryKeys.members(page, pageSize),
+    queryFn: () => api.getMembers(page, pageSize),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useMemberOptions() {
+  return useQuery({
+    queryKey: queryKeys.memberOptions,
+    queryFn: () => api.getMemberOptions(),
   })
 }
 
@@ -33,7 +43,7 @@ export function useCreateMember() {
   return useMutation({
     mutationFn: (input: MemberCreateInput) => api.createMember(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.members })
+      queryClient.invalidateQueries({ queryKey: ["members"] })
     },
   })
 }
@@ -44,7 +54,7 @@ export function useUpdateMember() {
     mutationFn: ({ id, input }: { id: number; input: MemberUpdateInput }) =>
       api.updateMember(id, input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.members })
+      queryClient.invalidateQueries({ queryKey: ["members"] })
       queryClient.invalidateQueries({ queryKey: ["tasks"] })
     },
   })
@@ -55,17 +65,18 @@ export function useDeleteMember() {
   return useMutation({
     mutationFn: (id: number) => api.deleteMember(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.members })
+      queryClient.invalidateQueries({ queryKey: ["members"] })
       queryClient.invalidateQueries({ queryKey: ["tasks"] })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
     },
   })
 }
 
-export function useTasks(filters?: TaskFilters) {
+export function useTasks(filters?: TaskFilters, page = 1, pageSize = 10) {
   return useQuery({
-    queryKey: queryKeys.tasks(filters),
-    queryFn: () => api.getTasks(filters),
+    queryKey: queryKeys.tasks(filters, page, pageSize),
+    queryFn: () => api.getTasks(filters, page, pageSize),
+    placeholderData: keepPreviousData,
   })
 }
 

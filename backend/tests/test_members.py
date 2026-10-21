@@ -37,16 +37,55 @@ def test_create_member_empty_name_422(client):
     assert response.status_code == 422
 
 
-def test_list_members(client):
+def test_list_members_pagination_and_ordering(client):
     client.post("/members", json={"name": "Bob", "email": "bob@domain.com"})
     client.post("/members", json={"name": "Alice", "email": "alice@domain.com"})
+    client.post("/members", json={"name": "Charlie", "email": "charlie@domain.com"})
 
-    response = client.get("/members")
-    assert response.status_code == 200
-    data = response.json()
+    res = client.get("/members?page=1&page_size=2")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 3
+    assert data["page"] == 1
+    assert data["page_size"] == 2
+    assert data["total_pages"] == 2
+    assert len(data["items"]) == 2
+    assert data["items"][0]["name"] == "Alice"
+    assert data["items"][1]["name"] == "Bob"
+
+    res_page_2 = client.get("/members?page=2&page_size=2")
+    assert res_page_2.status_code == 200
+    data_2 = res_page_2.json()
+    assert data_2["page"] == 2
+    assert len(data_2["items"]) == 1
+    assert data_2["items"][0]["name"] == "Charlie"
+
+    res_out_of_range = client.get("/members?page=99&page_size=2")
+    assert res_out_of_range.status_code == 200
+    data_out = res_out_of_range.json()
+    assert data_out["items"] == []
+    assert data_out["total"] == 3
+
+
+def test_list_members_invalid_pagination_params_422(client):
+    assert client.get("/members?page=0").status_code == 422
+    assert client.get("/members?page_size=0").status_code == 422
+    assert client.get("/members?page_size=101").status_code == 422
+
+
+def test_get_member_options(client):
+    client.post("/members", json={"name": "Zoe", "email": "zoe@domain.com"})
+    client.post("/members", json={"name": "Adam", "email": "adam@domain.com"})
+
+    res = client.get("/members/options")
+    assert res.status_code == 200
+    data = res.json()
+    assert isinstance(data, list)
     assert len(data) == 2
-    assert data[0]["name"] == "Alice"
-    assert data[1]["name"] == "Bob"
+    assert data[0]["name"] == "Adam"
+    assert data[1]["name"] == "Zoe"
+    assert "id" in data[0]
+    assert "email" not in data[0]
 
 
 def test_get_member_by_id(client):

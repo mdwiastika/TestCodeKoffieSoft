@@ -1,5 +1,6 @@
 import type {
   TeamMember,
+  MemberOption,
   MemberCreateInput,
   MemberUpdateInput,
   Task,
@@ -7,6 +8,8 @@ import type {
   TaskUpdateInput,
   DashboardStats,
   TaskFilters,
+  PaginatedTasks,
+  PaginatedMembers,
 } from "@/types"
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
@@ -35,8 +38,12 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
 }
 
 export const api = {
-  getMembers: (): Promise<TeamMember[]> => apiFetch<TeamMember[]>("/members"),
-  getMember: (id: number): Promise<TeamMember> => apiFetch<TeamMember>(`/members/${id}`),
+  getMembers: (page = 1, pageSize = 10): Promise<PaginatedMembers> =>
+    apiFetch<PaginatedMembers>(`/members?page=${page}&page_size=${pageSize}`),
+  getMemberOptions: (): Promise<MemberOption[]> =>
+    apiFetch<MemberOption[]>("/members/options"),
+  getMember: (id: number): Promise<TeamMember> =>
+    apiFetch<TeamMember>(`/members/${id}`),
   createMember: (input: MemberCreateInput): Promise<TeamMember> =>
     apiFetch<TeamMember>("/members", {
       method: "POST",
@@ -52,16 +59,21 @@ export const api = {
       method: "DELETE",
     }),
 
-  getTasks: (filters?: TaskFilters): Promise<Task[]> => {
+  getTasks: (
+    filters?: TaskFilters,
+    page = 1,
+    pageSize = 10
+  ): Promise<PaginatedTasks> => {
     const params = new URLSearchParams()
+    params.append("page", String(page))
+    params.append("page_size", String(pageSize))
     if (filters?.search) params.append("search", filters.search)
     if (filters?.status && filters.status !== "ALL") params.append("status", filters.status)
     if (filters?.priority && filters.priority !== "ALL") params.append("priority", filters.priority)
     if (filters?.assignee_id && filters.assignee_id !== "ALL")
       params.append("assignee_id", String(filters.assignee_id))
 
-    const queryString = params.toString() ? `?${params.toString()}` : ""
-    return apiFetch<Task[]>(`/tasks${queryString}`)
+    return apiFetch<PaginatedTasks>(`/tasks?${params.toString()}`)
   },
   getTask: (id: number): Promise<Task> => apiFetch<Task>(`/tasks/${id}`),
   createTask: (input: TaskCreateInput): Promise<Task> =>

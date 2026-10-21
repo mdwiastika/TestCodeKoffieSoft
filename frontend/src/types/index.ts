@@ -8,6 +8,11 @@ export interface TeamMember {
   created_at: string
 }
 
+export interface MemberOption {
+  id: number
+  name: string
+}
+
 export interface MemberCreateInput {
   name: string
   email: string
@@ -55,6 +60,7 @@ export interface DashboardStats {
   in_progress: number
   done: number
   overdue: number
+  needs_attention: Task[]
 }
 
 export interface TaskFilters {
@@ -63,3 +69,14 @@ export interface TaskFilters {
   priority?: string
   assignee_id?: string | number
 }
+
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  page_size: number
+  total_pages: number
+}
+
+export type PaginatedTasks = PaginatedResponse<Task>
+export type PaginatedMembers = PaginatedResponse<TeamMember>

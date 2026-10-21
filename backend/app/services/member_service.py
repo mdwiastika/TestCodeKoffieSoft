@@ -1,5 +1,7 @@
-from typing import List, Optional
+import math
+from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.models.member import Member
 from app.schemas.member import MemberCreate, MemberUpdate
@@ -8,7 +10,29 @@ from app.schemas.member import MemberCreate, MemberUpdate
 class MemberService:
     @staticmethod
     def get_all(db: Session) -> List[Member]:
-        return db.query(Member).order_by(Member.name.asc()).all()
+        return db.query(Member).order_by(Member.name.asc(), Member.id.asc()).all()
+
+    @staticmethod
+    def get_paginated(
+        db: Session,
+        page: int = 1,
+        page_size: int = 10,
+    ) -> Tuple[List[Member], int, int]:
+        total = db.query(func.count(Member.id)).scalar() or 0
+        total_pages = math.ceil(total / page_size) if total > 0 else 0
+        offset = (page - 1) * page_size
+        items = (
+            db.query(Member)
+            .order_by(Member.name.asc(), Member.id.asc())
+            .offset(offset)
+            .limit(page_size)
+            .all()
+        )
+        return items, total, total_pages
+
+    @staticmethod
+    def get_options(db: Session) -> List[Member]:
+        return db.query(Member).order_by(Member.name.asc(), Member.id.asc()).all()
 
     @staticmethod
     def get_by_id(db: Session, member_id: int) -> Member:
