@@ -1,4 +1,6 @@
+from typing import List
 from pydantic import BaseModel, Field
+from app.schemas.task import TaskResponse
 
 
 class DashboardStatsResponse(BaseModel):
@@ -9,4 +11,8 @@ class DashboardStatsResponse(BaseModel):
     overdue: int = Field(
         ...,
         description="Tasks where due_date < today and status != 'Done'",
+    )
+    needs_attention: List[TaskResponse] = Field(
+        default_factory=list,
+        description="Up to 5 tasks requiring attention: overdue first, then due soonest",
     )

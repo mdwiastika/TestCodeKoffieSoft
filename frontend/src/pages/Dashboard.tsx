@@ -1,9 +1,13 @@
-import { useDashboardStats, useTasks } from "@/api/hooks"
+import { useState } from "react"
+import type { Task, TaskCreateInput } from "@/types"
+import { useDashboardStats, useMemberOptions, useUpdateTask } from "@/api/hooks"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ErrorState } from "@/components/ui/error-state"
 import { Button } from "@/components/ui/button"
+import { TaskFormDialog } from "@/components/tasks/TaskFormDialog"
+import { useToast } from "@/components/ui/toast"
 import { formatDate } from "@/lib/utils"
 import {
   ListTodo,
@@ -11,10 +15,10 @@ import {
   CheckCircle2,
   AlertOctagon,
   Layers,
-  ArrowRight,
   Plus,
   AlertCircle,
-  User,
+  Calendar,
+  Sparkles,
 } from "lucide-react"
 
 interface DashboardProps {
@@ -23,6 +27,9 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onNavigateToTasks, onOpenCreateTask }: DashboardProps) {
+  const { showToast } = useToast()
+  const [taskToEdit, setTaskToEdit] = useState<Task | null>(null)
+
   const {
     data: stats,
     isLoading: isStatsLoading,
@@ -31,10 +38,8 @@ export function Dashboard({ onNavigateToTasks, onOpenCreateTask }: DashboardProp
     refetch: refetchStats,
   } = useDashboardStats()
 
-  const {
-    data: allTasks = [],
-    isLoading: isTasksLoading,
-  } = useTasks()
+  const { data: memberOptions = [] } = useMemberOptions()
+  const updateTaskMutation = useUpdateTask()
 
   if (isStatsLoading) {
     return (
@@ -43,11 +48,11 @@ export function Dashboard({ onNavigateToTasks, onOpenCreateTask }: DashboardProp
           <Skeleton className="h-7 w-48 mb-2" />
           <Skeleton className="h-5 w-72" />
         </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => (
             <Card key={i} className="p-4">
-              <Skeleton className="h-4 w-20 mb-3" />
-              <Skeleton className="h-8 w-14" />
+              <Skeleton className="h-4 w-16 mb-2" />
+              <Skeleton className="h-8 w-12" />
             </Card>
           ))}
         </div>
@@ -65,58 +70,71 @@ export function Dashboard({ onNavigateToTasks, onOpenCreateTask }: DashboardProp
     )
   }
 
-  const completionRate =
-    stats && stats.total > 0
-      ? Math.round((stats.done / stats.total) * 100)
-      : 0
+  const total = stats?.total ?? 0
+  const done = stats?.done ?? 0
+  const completionRate = total > 0 ? Math.round((done / total) * 100) : 0
+  const needsAttention = stats?.needs_attention || []
 
-  const urgentTasks = allTasks
-    .filter((t) => t.is_overdue || (t.status !== "Done" && t.priority === "High"))
-    .slice(0, 5)
+  const handleEditSubmit = async (data: TaskCreateInput) => {
+    if (!taskToEdit) return
+    try {
+      await updateTaskMutation.mutateAsync({
+        id: taskToEdit.id,
+        input: data,
+      })
+      showToast("Task updated successfully", "success")
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Failed to update task",
+        "error"
+      )
+      throw err
+    }
+  }
+
+  const getStatusBadge = (status: Task["status"]) => {
+    switch (status) {
+      case "To Do":
+        return <Badge variant="todo">To Do</Badge>
+      case "In Progress":
+        return <Badge variant="inProgress">In Progress</Badge>
+      case "Done":
+        return <Badge variant="done">Done</Badge>
+    }
+  }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Team Workspace Overview
+            Workspace Overview
           </h1>
           <p className="text-sm text-slate-600 mt-1">
-            Real-time status of deliverables, individual assignments, and pending deadlines.
+            Real-time status of deliverables and pending deadlines.
           </p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center">
           <Button onClick={onOpenCreateTask} size="sm">
             <Plus className="mr-1.5 h-4 w-4" />
             New Task
           </Button>
-          <Button
-            onClick={() => onNavigateToTasks()}
-            variant="outline"
-            size="sm"
-          >
-            View All Tasks
-            <ArrowRight className="ml-1.5 h-4 w-4" />
-          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <Card
           className="cursor-pointer hover:border-slate-400 transition-colors"
           onClick={() => onNavigateToTasks()}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-slate-600 font-medium">
-              Total tasks
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+            <CardTitle className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+              Total
             </CardTitle>
             <Layers className="h-4 w-4 text-slate-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{stats?.total ?? 0}</div>
-            <p className="text-xs text-slate-500 mt-1.5 font-medium">
-              {completionRate}% completed
-            </p>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl sm:text-3xl font-bold text-slate-900">{total}</div>
           </CardContent>
         </Card>
 
@@ -124,15 +142,14 @@ export function Dashboard({ onNavigateToTasks, onOpenCreateTask }: DashboardProp
           className="cursor-pointer hover:border-slate-400 transition-colors"
           onClick={() => onNavigateToTasks("To Do")}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-slate-600 font-medium">
-              To do
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+            <CardTitle className="text-xs text-slate-500 font-medium uppercase tracking-wider">
+              To Do
             </CardTitle>
             <ListTodo className="h-4 w-4 text-slate-400" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-800">{stats?.todo ?? 0}</div>
-            <p className="text-xs text-slate-500 mt-1.5 font-medium">Pending start</p>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl sm:text-3xl font-bold text-slate-800">{stats?.todo ?? 0}</div>
           </CardContent>
         </Card>
 
@@ -140,15 +157,14 @@ export function Dashboard({ onNavigateToTasks, onOpenCreateTask }: DashboardProp
           className="cursor-pointer hover:border-blue-300 transition-colors"
           onClick={() => onNavigateToTasks("In Progress")}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-blue-700 font-medium">
-              In progress
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+            <CardTitle className="text-xs text-blue-700 font-medium uppercase tracking-wider">
+              In Progress
             </CardTitle>
             <Clock className="h-4 w-4 text-blue-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-900">{stats?.in_progress ?? 0}</div>
-            <p className="text-xs text-blue-600 mt-1.5 font-medium">Active work</p>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl sm:text-3xl font-bold text-blue-900">{stats?.in_progress ?? 0}</div>
           </CardContent>
         </Card>
 
@@ -156,119 +172,113 @@ export function Dashboard({ onNavigateToTasks, onOpenCreateTask }: DashboardProp
           className="cursor-pointer hover:border-emerald-300 transition-colors"
           onClick={() => onNavigateToTasks("Done")}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-emerald-800 font-medium">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+            <CardTitle className="text-xs text-emerald-800 font-medium uppercase tracking-wider">
               Done
             </CardTitle>
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-emerald-900">{stats?.done ?? 0}</div>
-            <p className="text-xs text-emerald-800 mt-1.5 font-medium">Resolved</p>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl sm:text-3xl font-bold text-emerald-900">{done}</div>
           </CardContent>
         </Card>
 
         <Card
-          className="col-span-2 sm:col-span-1 border-red-300 bg-red-50/50 cursor-pointer hover:bg-red-50/80 transition-colors"
+          className="col-span-2 sm:col-span-1 border-red-300 bg-red-50/40 cursor-pointer hover:bg-red-50/70 transition-colors"
           onClick={() => onNavigateToTasks()}
         >
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm text-red-700 font-semibold">
-              Overdue
-            </CardTitle>
-            <AlertOctagon className="h-4 w-4 text-red-600" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2 p-4">
+            <div className="flex items-center space-x-1.5">
+              <AlertOctagon className="h-4 w-4 text-red-600 shrink-0" />
+              <CardTitle className="text-xs text-red-700 font-bold uppercase tracking-wider">
+                Overdue
+              </CardTitle>
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-700">{stats?.overdue ?? 0}</div>
-            <p className="text-xs text-red-600 font-medium mt-1.5">
-              Requires attention
-            </p>
+          <CardContent className="p-4 pt-0">
+            <div className="text-2xl sm:text-3xl font-bold text-red-700">{stats?.overdue ?? 0}</div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between text-xs mb-2">
+          <span className="font-semibold text-slate-700">Project Completion</span>
+          <span className="font-bold text-slate-900">{completionRate}% ({done}/{total})</span>
+        </div>
+        <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+          <div
+            className="h-full bg-slate-900 rounded-full transition-all duration-300"
+            style={{ width: `${completionRate}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-slate-900">
-              Immediate Attention Items
-            </h3>
+            <h2 className="text-sm font-semibold text-slate-900">
+              Needs Attention
+            </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Overdue deliverables and high priority tasks currently open.
+              Overdue and soonest upcoming tasks (max 5)
             </p>
           </div>
-          <Button
-            onClick={() => onNavigateToTasks()}
-            variant="ghost"
-            size="sm"
-            className="text-xs text-slate-600 hover:text-slate-900"
-          >
-            View all tasks <ArrowRight className="ml-1 h-3.5 w-3.5" />
-          </Button>
+          {needsAttention.length > 0 && (
+            <span className="text-xs text-slate-500 font-medium">
+              Click a task to review
+            </span>
+          )}
         </div>
 
-        {isTasksLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ) : urgentTasks.length === 0 ? (
-          <div className="py-6 text-center text-sm text-slate-500">
-            No urgent or overdue tasks at this time. All schedules are on track!
+        {needsAttention.length === 0 ? (
+          <div className="p-8 text-center flex flex-col items-center justify-center">
+            <div className="rounded-full bg-emerald-50 p-2.5 text-emerald-600 mb-2">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <p className="text-sm font-semibold text-slate-800">All caught up!</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              No overdue or urgent deliverables pending.
+            </p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
-            {urgentTasks.map((task) => (
+            {needsAttention.map((task) => (
               <div
                 key={task.id}
-                className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50/60 transition-colors rounded px-2 -mx-2"
+                onClick={() => setTaskToEdit(task)}
+                className="p-3 sm:px-4 flex items-center justify-between gap-3 hover:bg-slate-50/80 cursor-pointer transition-colors"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    setTaskToEdit(task)
+                  }
+                }}
               >
-                <div className="flex items-start space-x-3">
-                  {task.is_overdue ? (
-                    <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
-                  ) : (
-                    <Clock className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
-                  )}
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center space-x-2">
+                    {task.is_overdue && (
+                      <AlertCircle className="h-3.5 w-3.5 text-red-600 shrink-0" />
+                    )}
+                    <h3 className="text-xs sm:text-sm font-medium text-slate-900 truncate">
                       {task.title}
-                    </div>
-                    <div className="flex items-center space-x-2 mt-1 text-xs text-slate-500">
-                      <span>Due: {formatDate(task.due_date)}</span>
-                      <span>&bull;</span>
-                      <span>Priority: {task.priority}</span>
-                      <span>&bull;</span>
-                      <span className="flex items-center space-x-1">
-                        <User className="h-3 w-3" />
-                        <span>{task.assignee ? task.assignee.name : "Unassigned"}</span>
-                      </span>
-                    </div>
+                    </h3>
+                  </div>
+                  <div className="flex items-center space-x-1.5 mt-1 text-[11px] text-slate-500">
+                    <Calendar className="h-3 w-3 text-slate-400 shrink-0" />
+                    <span className={task.is_overdue ? "font-semibold text-red-600" : "text-slate-600"}>
+                      {formatDate(task.due_date)}
+                    </span>
+                    {task.is_overdue && (
+                      <span className="font-semibold text-red-600">&bull; Overdue</span>
+                    )}
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2 sm:self-center">
-                  {task.is_overdue && (
-                    <Badge variant="overdue">Overdue</Badge>
-                  )}
-                  <Badge
-                    variant={
-                      task.status === "To Do"
-                        ? "todo"
-                        : task.status === "In Progress"
-                        ? "inProgress"
-                        : "done"
-                    }
-                  >
-                    {task.status}
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={() => onNavigateToTasks()}
-                  >
-                    Manage
-                  </Button>
+                <div className="shrink-0 flex items-center space-x-1.5">
+                  {getStatusBadge(task.status)}
                 </div>
               </div>
             ))}
@@ -276,23 +286,14 @@ export function Dashboard({ onNavigateToTasks, onOpenCreateTask }: DashboardProp
         )}
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-xs text-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center space-x-2">
-          <span className="font-semibold text-slate-900">Assessment Rule:</span>
-          <span>
-            Overdue tasks are strictly calculated as{" "}
-            <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono text-[11px]">
-              due_date &lt; today
-            </code>{" "}
-            AND{" "}
-            <code className="bg-white px-1.5 py-0.5 rounded border border-slate-200 font-mono text-[11px]">
-              status != Done
-            </code>
-            .
-          </span>
-        </div>
-        <span className="text-slate-600 font-semibold">Done tasks are never marked overdue.</span>
-      </div>
+      <TaskFormDialog
+        isOpen={Boolean(taskToEdit)}
+        onClose={() => setTaskToEdit(null)}
+        taskToEdit={taskToEdit}
+        members={memberOptions}
+        onSubmit={handleEditSubmit}
+        isSubmitting={updateTaskMutation.isPending}
+      />
     </div>
   )
 }

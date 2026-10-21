@@ -10,6 +10,7 @@ def test_empty_dashboard(client):
     assert data["in_progress"] == 0
     assert data["done"] == 0
     assert data["overdue"] == 0
+    assert data["needs_attention"] == []
 
 
 def test_dashboard_counts_and_overdue_rule(client):
@@ -35,3 +36,23 @@ def test_dashboard_counts_and_overdue_rule(client):
     assert data["in_progress"] == 2
     assert data["done"] == 2
     assert data["overdue"] == 2
+
+    needs = data["needs_attention"]
+    assert len(needs) <= 5
+    assert all(t["status"] != "Done" for t in needs)
+    assert needs[0]["is_overdue"] is True
+    assert needs[1]["is_overdue"] is True
+
+
+def test_dashboard_needs_attention_max_5(client):
+    today = date.today()
+    for i in range(10):
+        client.post(
+            "/tasks",
+            json={"title": f"Overdue #{i}", "status": "To Do", "due_date": (today - timedelta(days=i + 1)).isoformat()},
+        )
+
+    response = client.get("/dashboard")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["needs_attention"]) == 5

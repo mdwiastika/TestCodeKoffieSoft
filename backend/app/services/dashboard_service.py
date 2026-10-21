@@ -3,6 +3,7 @@ from sqlalchemy import func, case, and_
 from sqlalchemy.orm import Session
 from app.models.task import Task
 from app.schemas.dashboard import DashboardStatsResponse
+from app.services.task_service import TaskService
 
 
 class DashboardService:
@@ -35,10 +36,13 @@ class DashboardService:
             .first()
         )
 
+        needs_attention = TaskService.get_needs_attention(db, limit=5)
+
         return DashboardStatsResponse(
             total=stats.total or 0,
             todo=stats.todo or 0,
             in_progress=stats.in_progress or 0,
             done=stats.done or 0,
             overdue=stats.overdue or 0,
+            needs_attention=needs_attention,
         )
