@@ -1,5 +1,8 @@
-from typing import List, Optional
+import math
+from datetime import date
+from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
+from sqlalchemy import func, case, and_
 from sqlalchemy.orm import Session, joinedload
 from app.models.task import Task
 from app.models.member import Member
@@ -29,7 +32,64 @@ class TaskService:
         if assignee_id is not None:
             query = query.filter(Task.assignee_id == assignee_id)
 
-        return query.order_by(Task.created_at.desc()).all()
+        return query.order_by(Task.created_at.desc(), Task.id.desc()).all()
+
+    @staticmethod
+    def get_paginated(
+        db: Session,
+        page: int = 1,
+        page_size: int = 10,
+        search: Optional[str] = None,
+        task_status: Optional[str] = None,
+        priority: Optional[str] = None,
+        assignee_id: Optional[int] = None,
+    ) -> Tuple[List[Task], int, int]:
+        query = db.query(Task)
+
+        if search and search.strip():
+            query = query.filter(Task.title.ilike(f"%{search.strip()}%"))
+
+        if task_status and task_status.strip():
+            query = query.filter(Task.status == task_status.strip())
+
+        if priority and priority.strip():
+            query = query.filter(Task.priority == priority.strip())
+
+        if assignee_id is not None:
+            query = query.filter(Task.assignee_id == assignee_id)
+
+        total = query.with_entities(func.count(Task.id)).scalar() or 0
+        total_pages = math.ceil(total / page_size) if total > 0 else 0
+
+        offset = (page - 1) * page_size
+        items = (
+            query.options(joinedload(Task.assignee))
+            .order_by(Task.created_at.desc(), Task.id.desc())
+            .offset(offset)
+            .limit(page_size)
+            .all()
+        )
+
+        return items, total, total_pages
+
+    @staticmethod
+    def get_needs_attention(db: Session, limit: int = 5) -> List[Task]:
+        today = date.today()
+        return (
+            db.query(Task)
+            .options(joinedload(Task.assignee))
+            .filter(Task.status != "Done")
+            .order_by(
+                case(
+                    (and_(Task.due_date < today, Task.status != "Done"), 0),
+                    else_=1,
+                ),
+                Task.due_date.asc().nullslast(),
+                Task.id.asc(),
+            )
+            .limit(limit)
+            .all()
+        )
 
     @staticmethod
     def get_by_id(db: Session, task_id: int) -> Task:

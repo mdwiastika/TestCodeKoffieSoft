@@ -1,5 +1,5 @@
 import { useState } from "react"
-import type { TaskFilters, TeamMember } from "@/types"
+import type { TaskFilters, MemberOption } from "@/types"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
@@ -9,7 +9,7 @@ import { Search, SlidersHorizontal, X } from "lucide-react"
 interface TaskFiltersBarProps {
   filters: TaskFilters
   onFilterChange: (filters: TaskFilters) => void
-  members: TeamMember[]
+  members: MemberOption[]
 }
 
 export function TaskFiltersBar({

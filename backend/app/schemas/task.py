@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 from pydantic import BaseModel, Field, ConfigDict, computed_field
 from app.schemas.member import MemberResponse
 
@@ -50,3 +50,11 @@ class TaskResponse(BaseModel):
         if self.status == "Done":
             return False
         return self.due_date < date.today()
+
+
+class PaginatedTaskResponse(BaseModel):
+    items: List[TaskResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

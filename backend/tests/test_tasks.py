@@ -117,6 +117,40 @@ def test_delete_task(client):
     assert get_res.status_code == 404
 
 
+def test_tasks_pagination_and_ordering(client):
+    for i in range(1, 16):
+        client.post("/tasks", json={"title": f"Task #{i:02d}"})
+
+    res = client.get("/tasks?page=1&page_size=10")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 15
+    assert data["page"] == 1
+    assert data["page_size"] == 10
+    assert data["total_pages"] == 2
+    assert len(data["items"]) == 10
+    assert data["items"][0]["title"] == "Task #15"
+
+    res_p2 = client.get("/tasks?page=2&page_size=10")
+    assert res_p2.status_code == 200
+    data_p2 = res_p2.json()
+    assert data_p2["page"] == 2
+    assert len(data_p2["items"]) == 5
+    assert data_p2["items"][0]["title"] == "Task #05"
+    assert data_p2["items"][-1]["title"] == "Task #01"
+
+    res_out = client.get("/tasks?page=99&page_size=10")
+    assert res_out.status_code == 200
+    assert res_out.json()["items"] == []
+    assert res_out.json()["total"] == 15
+
+
+def test_tasks_invalid_pagination_params_422(client):
+    assert client.get("/tasks?page=0").status_code == 422
+    assert client.get("/tasks?page_size=0").status_code == 422
+    assert client.get("/tasks?page_size=101").status_code == 422
+
+
 def test_tasks_filter_and_search(client):
     m1 = client.post("/members", json={"name": "Alice", "email": "a@c.com"}).json()["id"]
     m2 = client.post("/members", json={"name": "Bob", "email": "b@c.com"}).json()["id"]
@@ -128,22 +162,27 @@ def test_tasks_filter_and_search(client):
 
     search_res = client.get("/tasks?search=API")
     assert search_res.status_code == 200
-    assert len(search_res.json()) == 1
-    assert search_res.json()[0]["title"] == "Backend API Design"
+    assert search_res.json()["total"] == 1
+    assert len(search_res.json()["items"]) == 1
+    assert search_res.json()["items"][0]["title"] == "Backend API Design"
 
     status_res = client.get("/tasks?status=To Do")
     assert status_res.status_code == 200
-    assert len(status_res.json()) == 2
+    assert status_res.json()["total"] == 2
+    assert len(status_res.json()["items"]) == 2
 
     priority_res = client.get("/tasks?priority=High")
     assert priority_res.status_code == 200
-    assert len(priority_res.json()) == 2
+    assert priority_res.json()["total"] == 2
+    assert len(priority_res.json()["items"]) == 2
 
     assignee_res = client.get(f"/tasks?assignee_id={m1}")
     assert assignee_res.status_code == 200
-    assert len(assignee_res.json()) == 2
+    assert assignee_res.json()["total"] == 2
+    assert len(assignee_res.json()["items"]) == 2
 
     combined_res = client.get(f"/tasks?status=Done&priority=High&assignee_id={m1}")
     assert combined_res.status_code == 200
-    assert len(combined_res.json()) == 1
-    assert combined_res.json()[0]["title"] == "Database Optimization"
+    assert combined_res.json()["total"] == 1
+    assert len(combined_res.json()["items"]) == 1
+    assert combined_res.json()["items"][0]["title"] == "Database Optimization"

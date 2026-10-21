@@ -2,7 +2,7 @@ import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import type { Task, TeamMember, TaskCreateInput } from "@/types"
+import type { Task, MemberOption, TaskCreateInput } from "@/types"
 import { Dialog } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input, Textarea } from "@/components/ui/input"
@@ -27,7 +27,7 @@ interface TaskFormDialogProps {
   isOpen: boolean
   onClose: () => void
   taskToEdit?: Task | null
-  members: TeamMember[]
+  members: MemberOption[]
   onSubmit: (data: TaskCreateInput) => Promise<void>
   isSubmitting: boolean
 }
@@ -175,7 +175,7 @@ export function TaskFormDialog({
               <option value="UNASSIGNED">Unassigned</option>
               {members.map((m) => (
                 <option key={m.id} value={String(m.id)}>
-                  {m.name} ({m.email})
+                  {m.name}
                 </option>
               ))}
             </Select>
