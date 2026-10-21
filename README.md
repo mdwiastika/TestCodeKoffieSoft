@@ -16,7 +16,7 @@ Prioritizes correctness, simplicity, maintainability, calm and accessible UI/UX,
 
 ## Project Structure & Git Repository
 
-The project is structured as a **single unified Git repository** at the root with Conventional Commits scoped by feature (`feat(members)`, `feat(tasks)`, `feat(search)`, `feat(dashboard)`, `feat(branding)`, `fix(...)`, `chore(...)`).
+The project is a **single Git repository** (monorepo) at the root, with Conventional Commits scoped by feature (`feat(members)`, `feat(tasks)`, `feat(search)`, `feat(dashboard)`, `feat(branding)`, `fix(...)`, `chore(...)`).
 
 ```text
 .
@@ -70,26 +70,26 @@ The project is structured as a **single unified Git repository** at the root wit
 3. **Pagination & Deterministic Sorting (Backend + Frontend):**
    - Backend `page` (default 1) and `page_size` (default 10, max 100) query parameters with validation (422 on invalid input).
    - Standardized pagination response: `{"items": [...], "total": int, "page": int, "page_size": int, "total_pages": int}`.
-   - Deterministic sorting: Tasks ordered by `created_at desc, id desc`; Members ordered by `name asc, id asc`.
-   - Frontend pagination controls: previous/next buttons, page indicators, and total count display. Automatically resets to page 1 on filter or search changes, and preserves filter state across page navigation.
-   - Full synchronization with browser URL query strings (`?page=`, `?search=`, `?status=`, `?is_overdue=`, etc.) for seamless refresh and shareable URLs.
+   - Deterministic sorting: tasks ordered by `created_at desc, id desc`; members ordered by `name asc, id asc`.
+   - Frontend pagination controls: previous/next buttons, page indicators, and total count display. Automatically resets to page 1 on filter or search changes.
+   - Page, search, and filters are synchronized with the browser URL query string (`?page=`, `?search=`, `?status=`, `?is_overdue=`, etc.) so refresh and shared URLs keep the same view.
 
 4. **Search & Combinable Filtering:**
-   - Case-insensitive title search combined seamlessly with status, priority, assignee, and overdue filters.
+   - Case-insensitive title search combined with status, priority, assignee, and overdue filters.
    - Active filter counter and instant "Clear filters" action.
-   - Direct filter pills showing active criteria (such as *Filtered by: Overdue tasks only*).
+   - Filter pills showing active criteria (such as *Filtered by: Overdue tasks only*).
 
 5. **Mobile-First Dashboard Overview (`/dashboard`):**
-   - High-level executive overview, eliminating dense cluttered data tables.
-   - 5 KPI summary cards: Total, To Do, In Progress, Done, and Overdue (highlighted with distinctive red styling and icon).
-   - **Interactive Overdue Card:** Clicking the Overdue card automatically navigates to `/tasks?is_overdue=true`, displaying exclusively overdue tasks with an active filter pill.
-   - **Needs Attention Section:** Displays at most 5 actionable tasks prioritized strictly as overdue items first, followed by tasks due soonest. Includes a calm empty state when all deliverables are on schedule.
-   - Overall team completion progress bar (Done vs Total).
+   - High-level overview without dense data tables.
+   - 5 KPI summary cards: Total, To Do, In Progress, Done, and Overdue (highlighted with a distinct red style and icon).
+   - **Interactive Overdue Card:** clicking it navigates to `/tasks?is_overdue=true`, showing only overdue tasks with an active filter pill.
+   - **Needs Attention Section:** at most 5 tasks, overdue first, then soonest due date. Shows a calm empty state when everything is on schedule.
+   - Overall completion progress bar (Done vs Total).
 
 6. **Responsive UI & Mobile Navigation:**
-   - Desktop view (≥ 768px): Structured tables with quick hover actions, inline filter bars, and horizontal navigation bar.
-   - Mobile view (< 768px down to 360px): Compact task cards, slide-over filter sheet/drawer, and mobile hamburger drawer rendered in a portal overlay to prevent visual glitches or background bleeding.
-   - Custom original brand identity (`<Logo />` mark + wordmark) and typography powered by **Plus Jakarta Sans**.
+   - Desktop (≥ 768px): structured tables with hover quick actions, inline filter bars, and a horizontal navigation bar.
+   - Mobile (< 768px down to 360px): compact task cards, slide-over filter drawer, and a hamburger menu that opens a navigation drawer.
+   - Original brand identity (`<Logo />` mark + wordmark) and Plus Jakarta Sans typography.
 
 ---
 
@@ -106,7 +106,6 @@ Before running the application, ensure you have the following installed:
 ## Environment Variables
 
 ### Backend (`backend/.env`)
-Copy `backend/.env.example` to `backend/.env`:
 ```ini
 DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/taskmanagement
 TEST_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/taskmanagement_test
@@ -115,73 +114,85 @@ ENVIRONMENT=development
 ```
 
 ### Frontend (`frontend/.env`)
-Copy `frontend/.env.example` to `frontend/.env`:
 ```ini
 VITE_API_URL=http://127.0.0.1:8000
 ```
+
+Both files are created from the `.env.example` templates in the setup steps below.
 
 ---
 
 ## Step-by-Step Setup Guide
 
-### 1. Start PostgreSQL
-From the project root directory, launch the PostgreSQL container using Docker Compose:
+Commands are shown for PowerShell (Windows). macOS/Linux equivalents are noted where they differ.
+
+### 1. Create the environment files
+From the project root:
+```powershell
+Copy-Item backend\.env.example backend\.env
+Copy-Item frontend\.env.example frontend\.env
+```
+macOS/Linux: `cp backend/.env.example backend/.env && cp frontend/.env.example frontend/.env`
+
+### 2. Start PostgreSQL
+From the project root:
 ```powershell
 docker compose up -d
-```
-Verify the container is healthy:
-```powershell
 docker ps
 ```
+Verify the container is running and healthy.
 
-### 2. Setup Backend & Virtual Environment
-Navigate to `/backend`, initialize the virtual environment, and install pinned dependencies:
+### 3. Create the test database
+Tests run against a separate database (`taskmanagement_test`) so your development data is never touched. Create it once:
 ```powershell
-cd "backend"
+docker compose exec db psql -U postgres -c "CREATE DATABASE taskmanagement_test;"
+```
+If it already exists, the "already exists" message can be ignored.
+
+### 4. Set up the backend
+```powershell
+cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
+macOS/Linux: activate with `source .venv/bin/activate`.
 
-### 3. Run Database Migrations
-Execute Alembic migrations to build the schema:
+### 5. Run database migrations
 ```powershell
-.\.venv\Scripts\alembic.exe upgrade head
+alembic upgrade head
 ```
-*(Schema creation strictly relies on migrations; `Base.metadata.create_all()` is never used in setup).*
+Schema creation relies strictly on migrations; `Base.metadata.create_all()` is never used.
 
-### 4. Seed Sample Data
-Load realistic sample members and tasks:
+### 6. Seed sample data
 ```powershell
 python seed.py
 ```
-*Note: Generates 15 realistic team members and 35+ diverse tasks (overdue items, past-due completed tasks, unassigned tasks, and upcoming deliverables) specifically designed to exercise multi-page pagination.*
+Generates 15 team members and 35+ tasks (overdue items, past-due completed tasks, unassigned tasks, and upcoming deliverables), enough to exercise multi-page pagination.
 
-### 5. Run Backend Tests
-Execute the pytest suite (runs against the isolated `taskmanagement_test` database):
+### 7. Run backend tests
 ```powershell
 pytest -v
 ```
-All **26 tests** will pass:
+All **26 tests** should pass:
 - Member CRUD, email uniqueness (409), validation errors (422), options list, and pagination.
 - Task CRUD, defaults, invalid status/priority (422), unassigning, and deletion.
 - Deterministic pagination ordering, out-of-range pages, and query parameter constraints.
 - Combinable filters (search, status, priority, assignee, and overdue).
 - Dashboard KPI counts, overdue exclusion for Done tasks, and "Needs attention" prioritization.
 
-### 6. Start the Backend API Server
-Start the Uvicorn server:
+### 8. Start the backend API server
 ```powershell
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 - Interactive Swagger UI: `http://127.0.0.1:8000/docs`
-- Health check endpoint: `http://127.0.0.1:8000/health`
+- Health check: `http://127.0.0.1:8000/health`
 
-### 7. Setup & Run Frontend
-In a separate terminal, navigate to `/frontend`:
+### 9. Set up and run the frontend
+In a separate terminal, from the project root:
 ```powershell
-cd "frontend"
+cd frontend
 npm install
 npm run dev
 ```
@@ -189,53 +200,82 @@ Open `http://localhost:5173` in your browser.
 
 ---
 
+## API Overview
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET / POST | `/members` | List (paginated) / create members |
+| GET | `/members/options` | All members as `{id, name}`, not paginated |
+| GET / PATCH / DELETE | `/members/{id}` | Read / update / delete a member |
+| GET / POST | `/tasks` | List (paginated, filterable) / create tasks |
+| GET / PATCH / DELETE | `/tasks/{id}` | Read / update / delete a task |
+| GET | `/dashboard` | KPI counts and "needs attention" tasks |
+
+`GET /tasks` query parameters: `page`, `page_size`, `search`, `status`, `priority`, `assignee_id`, `is_overdue`.
+
+Errors use a consistent shape (`{"detail": "..."}`) with appropriate status codes: 201 on create, 204 on delete, 404 not found, 409 duplicate email, 422 validation error.
+
+---
+
 ## Architecture Notes & Key Trade-offs
 
 1. **Thin Routers & Service Layer Separation:**
    - Routers in `backend/app/routers/` handle HTTP deserialization, query parameters, status codes, and dependency injection (`get_db`).
-   - Business rules, queries, and entity logic live entirely in `backend/app/services/` (`MemberService`, `TaskService`, `DashboardService`).
-   - **Trade-off:** Adds an extra file layer per entity, but makes endpoint code readable, reusable, and straightforward to unit-test without running full HTTP stacks.
+   - Business rules, queries, and entity logic live in `backend/app/services/` (`MemberService`, `TaskService`, `DashboardService`).
+   - **Trade-off:** adds an extra file layer per entity, but keeps endpoint code readable, reusable, and easy to test.
 
 2. **Foreign Key `ON DELETE SET NULL` on `tasks.assignee_id`:**
-   - When a team member is deleted, tasks assigned to them have `assignee_id` automatically set to `NULL` via the database foreign key constraint.
-   - **Reasoning:** In a project tracking system, deleting a team member should never silently cascade-delete company tasks or project deliverables. Unassigned tasks remain preserved and can be picked up or reassigned by anyone on the team.
+   - When a team member is deleted, their tasks keep existing and become unassigned.
+   - **Reasoning:** deleting a team member should never silently delete project work. Unassigned tasks can be picked up and reassigned.
 
 3. **Check Constraints vs. Native PostgreSQL Enums:**
-   - Instead of PostgreSQL native types (`CREATE TYPE task_status ...`), standard `String(50)` columns with database `CheckConstraint("status IN ('To Do', 'In Progress', 'Done')")` and `CheckConstraint("priority IN ('Low', 'Medium', 'High')")` were used.
-   - **Reasoning:** Native enum types in PostgreSQL lock tables during migrations when adding or reordering values and complicate Alembic autogenerate rollback scripts. CheckConstraints provide the exact same strict data integrity at the database layer while being effortless to alter in Alembic.
+   - `String(50)` columns with `CheckConstraint("status IN ('To Do', 'In Progress', 'Done')")` and `CheckConstraint("priority IN ('Low', 'Medium', 'High')")` are used instead of native `CREATE TYPE` enums.
+   - **Reasoning:** native enums are harder to alter in migrations (adding or reordering values) and complicate Alembic rollbacks. Check constraints give the same data integrity at the database layer and are easy to change.
 
-4. **Overdue Task Rule Definition:**
+4. **Overdue Task Rule:**
    - A task is overdue if and only if `due_date < today` **AND** `status != 'Done'`.
-   - Completed tasks (`Done`) with past deadlines are **never marked overdue**.
-   - Verified in backend SQL queries (`DashboardService`, `TaskService`), Pydantic response models (`computed_field` in `TaskResponse`), frontend badge indicators, and automated pytest tests.
+   - Completed tasks with past deadlines are never overdue.
+   - Applied consistently in backend queries (`DashboardService`, `TaskService`), the `TaskResponse` computed field, frontend badges, and pytest tests.
 
-5. **Single-Query Dashboard Aggregation & Needs Attention Filtering:**
-   - `GET /dashboard` uses SQL `CASE` statements inside aggregate counts (`func.count(case(...))`) to calculate `total`, `todo`, `in_progress`, `done`, and `overdue` in a single SQL round-trip to PostgreSQL.
-   - The "Needs attention" list is queried using a dedicated SQL query limited to 5 records sorted by overdue priority and nearest due date, preventing the dashboard from fetching excessive unneeded task rows.
+5. **Single-Query Dashboard Aggregation:**
+   - `GET /dashboard` uses SQL `CASE` inside aggregate counts (`func.count(case(...))`) to compute `total`, `todo`, `in_progress`, `done`, and `overdue` in one round-trip.
+   - The "Needs attention" list is a dedicated query limited to 5 rows, sorted by overdue first and then nearest due date, so the dashboard never loads the full task list.
 
-6. **Responsive UX: Desktop Table vs. Mobile Cards & Drawer:**
-   - On desktop (≥ 768px), tasks and members are laid out in clean tabular form with hover quick actions.
-   - On mobile (< 768px down to 360px), tasks automatically render as cards with badges, meta icons, and a quick-status selector. Filter controls collapse into a mobile sheet/drawer with an active filter badge counter, eliminating horizontal scrolling.
+6. **Offset Pagination with Deterministic Ordering:**
+   - Lists use `LIMIT/OFFSET` with a stable `ORDER BY` (including `id` as a tie-breaker), so rows do not shift or repeat between pages.
+   - **Trade-off:** simple and sufficient for a small team. For very large datasets, cursor-based pagination would avoid slow large offsets.
+   - Dropdowns that need every member use `GET /members/options`, so they are never truncated by pagination.
 
-7. **Four UI States Everywhere:**
-   - Every view handles: **Loading** (pulse skeletons), **Empty** (contextual icon, explanation, and action button), **Error** (error card with retry button), and **Success** (toast alerts).
+7. **Responsive UX:**
+   - Desktop uses tables; mobile uses cards, a filter drawer, and a hamburger navigation drawer, avoiding horizontal scrolling down to 360px.
+
+8. **Four UI States Everywhere:**
+   - Every view handles **Loading** (skeletons), **Empty** (explanation and action), **Error** (message with retry), and **Success** (toast).
 
 ---
 
 ## Known Limitations & Future Roadmap
 
 1. **No Authentication / Multi-Tenancy:**
-   - As specified in the assessment scope, authentication and user logins are intentionally omitted. In an enterprise production system, JWT or session-based authentication with role-based access control (RBAC) would be implemented.
-2. **Real-time WebSockets / SSE:**
-   - Dashboard counts and task updates currently refetch on mutation or manual refresh; WebSockets or Server-Sent Events could push live task updates to colleagues in real time.
-3. **Bulk Operations:**
-   - Bulk status changes or multi-select reassignments for rapid team triage could be added as the team scales.
+   - Intentionally omitted per the assessment scope. A production system would add JWT or session-based authentication with role-based access control.
+2. **No Automated Frontend Tests:**
+   - The backend has an automated test suite; the frontend flows were verified manually (create, edit, delete, assign, search, filter, pagination, dashboard) at 360px, 768px, and 1280px widths. Component and end-to-end tests would be the next step.
+3. **No Real-Time Updates:**
+   - Lists and dashboard counts refetch after mutations or on manual refresh. WebSockets or Server-Sent Events could push live updates to teammates.
+4. **Offset Pagination:**
+   - See architecture note 6; cursor-based pagination would be the upgrade path for very large datasets.
+5. **Bulk Operations:**
+   - Bulk status changes or multi-select reassignment could be added as the team grows.
 
 ---
 
 ## AI Usage Disclosure
 
-- **Tool Used:** Google Gemini 3.8 Flash (High) via Antigravity Coding Agent.
-- **Concrete Example of AI Assistance:**
-  During implementation of the overdue task drill-down from the Dashboard, the agent identified that the Overdue summary card previously navigated to `/tasks` without applying query filters. The agent systematically updated the backend service and router to accept `is_overdue: Optional[bool]`, added comprehensive pytest test coverage (`test_tasks_filter_overdue`), updated the frontend URL routing (`/tasks?is_overdue=true`), and created a visual filter pill with quick reset functionality.
-- Detailed step-by-step logs and decision history are documented in [`AI_NOTES.md`](AI_NOTES.md).
+- **Tools used:**
+  - **Antigravity** coding agent (model: `<exact model name shown in Antigravity>`) for implementation.
+  - **Claude** (Anthropic) for planning, writing agent prompts, and reviewing this documentation.
+  - **`<design skill name>`**, an installed agent skill, for frontend visual guidance.
+- **Concrete example of AI assistance:**
+  While building the Overdue drill-down from the dashboard, the agent noticed that the Overdue summary card navigated to `/tasks` without applying a filter. It added an `is_overdue: Optional[bool]` filter to the backend service and router, added a pytest test (`test_tasks_filter_overdue`), updated the frontend routing to `/tasks?is_overdue=true`, and added a filter pill with a quick reset.
+- **Verification:** all generated code was reviewed, the backend test suite was run, and the main flows were tested manually on mobile and desktop widths. I can explain the architecture and the decisions above.
+- Step-by-step logs and decision history are in [`AI_NOTES.md`](AI_NOTES.md).
